@@ -1,33 +1,52 @@
-const sqlite3 = require("sqlite3").verbose();
+const express = require("express");
+const app = express();
+const sqlite = require("sqlite3").verbose();
+const db = new sqlite.Database("./cards.db", sqlite.OPEN_READWRITE, (err)=>{
+    if (err) return console.log("Gagal membuat database");
+    else return console.log("Berhasil membuat database");
+});
+const Hashids = require('hashids/cjs');
+const hashids = new Hashids('AIfhu934fb', 10);
 
+const PORT = 5000; 
 let sql;
 
-// Connect to DB
-let db = new sqlite3.Database(':memory:');
+app.use(express.json());
 
-// Create table
-sql = 'CREATE TABLE users (card_key INTEGER PRIMARY KEY, sender TEXT, recipient TEXT, message TEXT)';
-db.run(sql, (err) => {
-    if (err) return console.error(err.message);
+app.post('/post-card', (req, res)=>{
+    try{
+        const {sender, recipient, message} = req.body;
+        sql = "INSERT INTO cards(sender,recipient,message) VALUES (?,?,?)"
 
-    // Insert data into table
-    sql = 'INSERT INTO users (card_key, sender, recipient, message) VALUES (?,?,?,?)';
-    db.run(sql, [123456, 'John', 'Jane', 'Happy Valentines Day!'], (err) => {
-        if (err) return console.error(err.message);
+        db.run(sql, [sender, recipient, message], (err)=>{
+            if(err) {
+                console.log("Gagal posting database", sender, recipient, message, err);
+                return res.json({
+                    status: 300,
+                    success: false,
+                    error: "Gagal posting card"
+                });
+            }
 
-        // Update data in table
-        sql = 'UPDATE users SET message = ? WHERE card_key = ?';
-        db.run(sql, ['Happy Valentines Day!', 123456], (err) => {
-            if (err) return console.error(err.message);
-
-            // Select data from table
-            sql = 'SELECT * FROM users';
-            db.all(sql, [], (err, rows) => {
-                if (err) return console.error(err.message);
-                rows.forEach((row) => {
-                    console.log(row);
+            db.get("SELECT last_insert_rowid() as card_key", [], (err, row) => {
+                const hashedKey = hashids.encode(row.card_key); 
+                return res.status(200).json({
+                    status: 200,
+                    success: true,
+                    message: "Berhasil posting card",
+                    card_key: hashedKey
                 });
             });
+        })
+
+    } catch(error) {
+        return res.json({
+            status: 400, 
+            success: false,
+            error: "Gagal post request"
         });
-    });
-});
+    }
+})
+
+app.listen(PORT);
+
