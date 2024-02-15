@@ -8,19 +8,11 @@ const app = express();
 const router = express.Router();
 const hashids = new Hashids('AIfhu934fb', 10);
 
-const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "cards",
-    password: "8430",
-    port: "5432"
-})
 
-/* testing to loc
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL ,
 })
-*/
+
 
 pool.connect((err)=>{
     if (err) {
@@ -98,4 +90,4 @@ router.get('/get-card', async (req, res)=>{
 })
 
 app.use('/api', router);
-app.listen(8003, () => console.log(">> Server jalan euy"))
+app.listen(process.env.PORT, () => console.log(">> Server jalan euy"))
