@@ -9,8 +9,18 @@ const router = express.Router();
 const hashids = new Hashids('AIfhu934fb', 10);
 
 const pool = new Pool({
+    user: "postgres",
+    host: "localhost",
+    database: "cards",
+    password: "8430",
+    port: "5432"
+})
+
+/* testing to loc
+const pool = new Pool({
     connectionString: process.env.POSTGRES_URL ,
 })
+*/
 
 pool.connect((err)=>{
     if (err) {
@@ -64,15 +74,6 @@ router.get('/get-card', async (req, res)=>{
         const result = await pool.query(sql, data);
         const row = result.rows[0];
 
-        if(!row) {
-            console.log("[!] Database tidak ditemukan: ", decodedKey);
-            return res.status(404).json({
-                success: false,
-                date: date,
-                message: "Database tidak ditemukan"
-            });
-        }
-
         console.log(">> Berhasil get database:\n", row)
         return res.status(200).json({
             success: true,
@@ -87,14 +88,14 @@ router.get('/get-card', async (req, res)=>{
         });
       
     } catch(error) {
-        console.error("[!] Gagal mengambil database", error);
-        return res.status(300).json({
-            success: false,
-            date: date,
-            message: "Gagal mengambil database"
+        console.log("[!] Database tidak ditemukan");
+        return res.status(404).json({
+                success: false,
+                date: date,
+                message: "Database tidak ditemukan"
         });
     }
 })
 
 app.use('/api', router);
-app.listen(process.env.PORT, () => console.log(">> Server jalan"))
+app.listen(8003, () => console.log(">> Server jalan euy"))
