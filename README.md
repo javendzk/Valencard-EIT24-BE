@@ -52,9 +52,26 @@ Example response;
 	"card_key": "YwW8l2Q0KO"
 }
 ```
+## Failed / Bad Requests
+on …/api/get-card if no card found for corresponding key
+```json
+{
+	"success": false,
+	"date": "16-02-2024 15:18 WIB",
+	"message": "Database tidak ditemukan"
+}
+```
+on …/api/post-card if card posting failed
+```json
+{
+	"success": false,
+	"message": "Gagal posting card request"
+}
+```
+
 
 ## Extras
-This repository was made by Javen & Benedict with dependencies specified below. Run `npm install` to automatically install all of them and `npm run dev` to fire it up on localhost. Remember to make a `.env` file containing required resources (PostgreSQL variant) or simply edit ports & database connection on `app.js` (all variant)
+This repository was made by Javen & Benedict with dependencies specified below. Run `npm install` to automatically install all of them and `npm run dev` to fire it up on localhost. Remember to make a `.env` file containing required resources (PostgreSQL variant) or simply edit ports & database connection on `index.js` (all variant)
 - dotenv: ^16.4.4
 - express: ^4.18.2
 - hashids: ^2.3.0
