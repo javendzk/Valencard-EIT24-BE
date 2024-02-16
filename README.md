@@ -1,5 +1,5 @@
 # Valencard-EIT24-BE
-Backend system for Pemasak Internal Training Team's project, *Valencard*. Available in two variants; Express.js & PostgreSQL as in `.../tree/postgresql` or Express.js & SQLite3 as in `.../tree/sqlite3`. The deployed one is with Postgres, utilizing Vercel's Postgres serverless storage. 
+Backend system for Pemasak Internal Training Team's project, *Valencard*. Available in two variants; Express.js & PostgreSQL as in `.../tree/postgresql` or Express.js & SQLite3 as in `.../tree/sqlite3`. The deployed one is with Postgres, hooked to Vercel's Postgres. 
 
 ```javascript=
 GET     https://valencard-eit24.vercel.app/api/get-card
@@ -69,9 +69,8 @@ on …/api/post-card if card posting failed
 }
 ```
 
-
 ## Extras
-This repository was made by Javen & Benedict with dependencies specified below. Run `npm install` to automatically install all of them and `npm run dev` to fire it up on localhost. Remember to make a `.env` file containing required resources (PostgreSQL variant) or simply edit ports & database connection on `index.js` (all variant)
+Run `npm install` to automatically install all dependency listed below and `npm run dev` to fire it up on localhost. Remember to make a `.env` file containing required resources (PostgreSQL variant) or simply edit ports & database connection on `index.js` (all variant)
 - dotenv: ^16.4.4
 - express: ^4.18.2
 - hashids: ^2.3.0
