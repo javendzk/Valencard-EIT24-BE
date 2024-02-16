@@ -2,12 +2,13 @@ const express = require("express");
 const { Pool } = require('pg')
 const moment = require('moment-timezone');  
 const Hashids = require('hashids/cjs');
+const cors = require("cors");
 
 require('dotenv').config()
 const app = express();
 const router = express.Router();
 const hashids = new Hashids('AIfhu934fb', 10);
-
+app.use(cors());
 
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL ,
