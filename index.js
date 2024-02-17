@@ -47,7 +47,7 @@ router.post('/post-card', async (req, res)=>{
 
     } catch(error) {
         console.log("[!] Gagal posting database", err);
-        return res.status(300).json({
+        return res.status(500).json({
             success: false,
             message: "Gagal posting card request"
         });
@@ -82,7 +82,7 @@ router.get('/get-card', async (req, res)=>{
       
     } catch(error) {
         console.log("[!] Database tidak ditemukan");
-        return res.status(404).json({
+        return res.status(200).json({
                 success: false,
                 date: date,
                 message: "Database tidak ditemukan"
