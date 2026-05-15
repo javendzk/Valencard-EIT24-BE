@@ -46,10 +46,90 @@ router.post('/post-card', async (req, res)=>{
         });
 
     } catch(error) {
-        console.log("[!] Gagal posting database", err);
+        console.log("[!] Gagal posting database", error);
         return res.status(500).json({
             success: false,
             message: "Gagal posting card request"
+        });
+    }
+})
+
+
+router.put('/put-card', async (req, res) => {
+    const date = moment().tz('Asia/Jakarta').format('DD-MM-YYYY HH:mm [WIB]');
+
+    try {
+        const { card_key, sender, recipient, message, theme } = req.body;
+
+        if (!card_key) {
+            return res.status(400).json({
+                success: false,
+                date,
+                message: "card_key is required"
+            });
+        }
+
+        const decodedKey = parseInt(hashids.decode(card_key)[0]);
+        if (!decodedKey) {
+            return res.status(404).json({
+                success: false,
+                date,
+                message: "Card tidak ditemukan"
+            });
+        }
+
+        const updates = [];
+        const values = [];
+
+        if (sender !== undefined) {
+            values.push(sender);
+            updates.push(`sender = $${values.length}`);
+        }
+        if (recipient !== undefined) {
+            values.push(recipient);
+            updates.push(`recipient = $${values.length}`);
+        }
+        if (message !== undefined) {
+            values.push(message);
+            updates.push(`message = $${values.length}`);
+        }
+        if (theme !== undefined) {
+            values.push(theme);
+            updates.push(`theme = $${values.length}`);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                date,
+                message: "Tidak ada data untuk diubah"
+            });
+        }
+
+        values.push(decodedKey);
+        sql = `UPDATE cards SET ${updates.join(', ')} WHERE card_key = $${values.length}`;
+
+        const result = await pool.query(sql, values);
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                success: false,
+                date,
+                message: "Card tidak ditemukan"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            date,
+            message: "Berhasil mengubah card",
+            card_key
+        });
+    } catch (error) {
+        console.log("[!] Gagal mengubah card", error);
+        return res.status(500).json({
+            success: false,
+            date,
+            message: "Gagal mengubah card"
         });
     }
 })
