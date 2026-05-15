@@ -15,41 +15,75 @@ const pool = new Pool({
 })
 
 
-pool.connect((err)=>{
+pool.connect(async (err)=>{
     if (err) {
         console.log("[!] Gagal connect ke database", err)
     } else {
         console.log(">> Berhasil connect ke database")
+        try {
+            await pool.query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS custom_key text UNIQUE");
+            console.log(">> custom_key column ready")
+        } catch (err) {
+            console.log("[!] Failed to ensure custom_key column", err)
+        }
     }
 })
 
 app.use(express.json());
 let sql;
 
+const findCardByKey = async (key) => {
+    if (!key) return null;
+
+    const direct = await pool.query("SELECT * FROM cards WHERE custom_key = $1", [key]);
+    if (direct.rowCount > 0) {
+        return direct.rows[0];
+    }
+
+    const decoded = hashids.decode(key);
+    const decodedId = parseInt(decoded[0]);
+    if (!decodedId) {
+        return null;
+    }
+
+    const byId = await pool.query("SELECT * FROM cards WHERE card_key = $1", [decodedId]);
+    return byId.rowCount > 0 ? byId.rows[0] : null;
+};
+
 router.post('/post-card', async (req, res)=>{
     const date = moment().tz('Asia/Jakarta').format('DD-MM-YYYY HH:mm [WIB]');
  
     try {
-        const {sender, recipient, message, theme} = req.body;
+        const { sender, recipient, message, theme, card_key } = req.body;
         const data = [sender, recipient, message, theme];
-        sql = "INSERT INTO cards(sender, recipient, message, theme) VALUES ($1, $2, $3, $4) RETURNING card_key";
+        let result;
 
-        const result = await pool.query(sql, data);
-        const hashedKey = hashids.encode(result.rows[0].card_key);
+        if (card_key) {
+            sql = "INSERT INTO cards(sender, recipient, message, theme, custom_key) VALUES ($1, $2, $3, $4, $5) RETURNING card_key, custom_key";
+            data.push(card_key);
+        } else {
+            sql = "INSERT INTO cards(sender, recipient, message, theme) VALUES ($1, $2, $3, $4) RETURNING card_key";
+        }
+
+        result = await pool.query(sql, data);
+
+        const row = result.rows[0];
+        const returnedKey = row.custom_key || hashids.encode(row.card_key);
 
         console.log(">> Berhasil post database:\n", req.body)
         return res.status(200).json({
             success: true,
-            date: date,
+            date,
             message: "Berhasil posting card",
-            card_key: hashedKey
+            card_key: returnedKey
         });
 
     } catch(error) {
         console.log("[!] Gagal posting database", error);
+        const message = error.code === '23505' ? "card_key sudah digunakan" : "Gagal posting card request";
         return res.status(500).json({
             success: false,
-            message: "Gagal posting card request"
+            message
         });
     }
 })
@@ -59,7 +93,7 @@ router.put('/put-card', async (req, res) => {
     const date = moment().tz('Asia/Jakarta').format('DD-MM-YYYY HH:mm [WIB]');
 
     try {
-        const { card_key, sender, recipient, message, theme } = req.body;
+        const { card_key, new_card_key, sender, recipient, message, theme } = req.body;
 
         if (!card_key) {
             return res.status(400).json({
@@ -69,8 +103,8 @@ router.put('/put-card', async (req, res) => {
             });
         }
 
-        const decodedKey = parseInt(hashids.decode(card_key)[0]);
-        if (!decodedKey) {
+        const card = await findCardByKey(card_key);
+        if (!card) {
             return res.status(404).json({
                 success: false,
                 date,
@@ -81,6 +115,10 @@ router.put('/put-card', async (req, res) => {
         const updates = [];
         const values = [];
 
+        if (new_card_key !== undefined) {
+            values.push(new_card_key);
+            updates.push(`custom_key = $${values.length}`);
+        }
         if (sender !== undefined) {
             values.push(sender);
             updates.push(`sender = $${values.length}`);
@@ -106,7 +144,7 @@ router.put('/put-card', async (req, res) => {
             });
         }
 
-        values.push(decodedKey);
+        values.push(card.card_key);
         sql = `UPDATE cards SET ${updates.join(', ')} WHERE card_key = $${values.length}`;
 
         const result = await pool.query(sql, values);
@@ -122,14 +160,15 @@ router.put('/put-card', async (req, res) => {
             success: true,
             date,
             message: "Berhasil mengubah card",
-            card_key
+            card_key: new_card_key || card.custom_key || hashids.encode(card.card_key)
         });
     } catch (error) {
         console.log("[!] Gagal mengubah card", error);
+        const message = error.code === '23505' ? "new_card_key sudah digunakan" : "Gagal mengubah card";
         return res.status(500).json({
             success: false,
             date,
-            message: "Gagal mengubah card"
+            message
         });
     }
 })
@@ -139,18 +178,21 @@ router.get('/get-card', async (req, res)=>{
     const date = moment().tz('Asia/Jakarta').format('DD-MM-YYYY HH:mm [WIB]');
 
     try {
-        const {card_key} = req.query;
-        const decodedKey = parseInt(hashids.decode(card_key)[0]);
-        const data = [decodedKey];
-        sql = "SELECT * FROM cards WHERE card_key = $1";
+        const { card_key } = req.query;
+        const row = await findCardByKey(card_key);
 
-        const result = await pool.query(sql, data);
-        const row = result.rows[0];
+        if (!row) {
+            return res.status(404).json({
+                success: false,
+                date,
+                message: "Database tidak ditemukan"
+            });
+        }
 
         console.log(">> Berhasil get database:\n", row)
         return res.status(200).json({
             success: true,
-            date: date,
+            date,
             message: "Berhasil mengambil card",
             card: {
                 sender: row.sender,
@@ -161,10 +203,10 @@ router.get('/get-card', async (req, res)=>{
         });
       
     } catch(error) {
-        console.log("[!] Database tidak ditemukan");
-        return res.status(200).json({
+        console.log("[!] Database tidak ditemukan", error);
+        return res.status(500).json({
                 success: false,
-                date: date,
+                date,
                 message: "Database tidak ditemukan"
         });
     }
